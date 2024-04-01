@@ -97,6 +97,39 @@ match m with
 |_ -> (remplir_segment m (i,j,k))@remplir_triangle_bas (m-1) (i-1,j+1,k)
 ;;
 
+(* Q13 
+REAL.: eq. rec. : 
+rempl... 0 (i,j,k) -> []                  
+rempl... 1 (i,j,k) -> [(i,j,k)]                
+rempl... m (i,j,k) -> remplir_segment m (i,j,k)@rempl... (m-1) (i+m-1*p,j,k-m+1*p) avec p un entier decroissant a chaque appel
+*)
+let rec remplir_triangle_haut (m:int) ((i,j,k):case) : case list =
+  match m with
+  |0 -> []
+  |1 -> [(i,j,k)]
+  |_ -> remplir_segment m (i,j,k)@(let p = m-1 in remplir_triangle_haut(m-1) (i+m-1*p,j,k-m+1*p));;
+
+(* Q14 
+REAL. : eq. rec. :
+colorie cl [] -> []
+colorie cl -> [(i,j,k),cl]
+colorie cl pr::fin -> [pr,cl]@colorie cl fin
+*)
+
+let rec colorie (color:couleur) (cse:case list) : case_coloree list =
+  match cse with
+  | [] -> []
+  | [(i,j,k)] -> [((i,j,k),color)]
+  | pr::fin -> [(pr,color)]@colorie color fin;;
+
+(* Q15 *)
+
+let rec tourner_config ((ccl_liste,cl_lis,dim):configuration) : configuration = (*(([-3;-3;6],Jaune),[Jaune],3)*)
+;;
+(*Pas fini j'ai pas compris le concept mdr*)
+
+
+(*Q16*)
 
 (*AFFICHAGE (fonctionne si les fonctions au dessus sont remplies)*)
 (*transfo transforme des coordonnees cartesiennes (x,y) en coordonnees de case (i,j,k)*)
