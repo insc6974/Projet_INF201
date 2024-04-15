@@ -90,18 +90,22 @@ match m with
 |_ -> (i,j,k):: remplir_segment (m-1) (i,j+1,k-1)
 ;;
 
-(*Q12*)
+(*Q12
+REAL.: eq rec. :
+rempl...bas 1 (i,j,k) -> [i,j,k]
+rempl...bas m (i,j,k) -> (remplir_segment m (i,j,k))@remplir_triangle_bas (m-1) (i-1,j+1,k)
+*)
 let rec remplir_triangle_bas (m:int) ((i,j,k) : case) : case list = 
-match m with 
+match m with
 |1 -> [(i,j,k)]
 |_ -> (remplir_segment m (i,j,k))@remplir_triangle_bas (m-1) (i-1,j+1,k)
 ;;
 
 (* Q13 
 REAL.: eq. rec. : 
-rempl... 0 (i,j,k) -> []                  
-rempl... 1 (i,j,k) -> [(i,j,k)]                
-rempl... m (i,j,k) -> remplir_segment m (i,j,k)@rempl... (m-1) (i+m-1*p,j,k-m+1*p) avec p un entier decroissant a chaque appel
+rempl...haut 0 (i,j,k) -> []                  
+rempl...haut 1 (i,j,k) -> [(i,j,k)]                
+rempl...haut m (i,j,k) -> remplir_segment m (i,j,k)@rempl...haut (m-1) (i+m-1*p,j,k-m+1*p) avec p un entier decroissant a chaque appel
 *)
 let rec remplir_triangle_haut (m:int) ((i,j,k):case) : case list =
   match m with
@@ -128,8 +132,17 @@ let rec tourner_config ((ccl_liste,cl_lis,dim):configuration) : configuration = 
 ;;
 (*Pas fini j'ai pas compris le concept mdr*)
 
+(*Q17*)
+let quelle_couleur (c:case) ((ccl_liste,cl_lis,dim):configuration) : couleur =
+  associe c ccl_liste Libre;;
 
-(*Q16*)
+(*18*)
+let rec suppr_dans_conf ((ccl_liste,cl_lis,dim):configuration) (c:case) : configuration =
+  match ccl_liste with
+  |[] |[(i,j,k),_] when i,j,k!=c -> (ccl_liste,cl_lis,dim)
+  |[(i,j,k),_]-> [],cl_lis,dim
+  |pr::fin -> let i,j,k,color = pr in if i,j,k=c in (fin,cl_lis,dim) else suppr_dans_conf (fin,cl_lis,dim) c;;
+
 
 (*AFFICHAGE (fonctionne si les fonctions au dessus sont remplies)*)
 (*transfo transforme des coordonnees cartesiennes (x,y) en coordonnees de case (i,j,k)*)
