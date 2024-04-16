@@ -15,6 +15,9 @@ type configuration = case_coloree list * couleur list * dimension;; (*sans case 
           
 type coup = Du of case * case | Sm of case list;;
 
+let test_configuration = ([(0,0,0),Jaune;(0,1,0),Vert],[Jaune;Vert],2)
+(* Au tour des Jaunes de jouer *)
+
 let indice_valide (x:int) (dim:dimension) : bool =
   x >= -2*dim && x<= 2*dim;;
 
@@ -47,6 +50,8 @@ let diff_case ((c1,c2,c3):case) ((d1,d2,d3):case) : vecteur =
 (*Q7*)
 let sont_cases_voisines ((c1,c2,c3):case) ((d1,d2,d3):case) : bool = abs(d1-c1)+abs(d2-c2)+abs(d3-c3) = 2
 ;;
+assert(sont_cases_voisines (1,0,-1) (0,0,0));;
+assert(sont_cases_voisines (0,0,0) (3,2,2));;
 (*Q8*)
 let pt_ent (x:float) : float =
   float_of_int(truncate x);;
@@ -54,7 +59,7 @@ let pt_ent (x:float) : float =
 let midDist_2pts (c1,c2,c3:case) (d1,d2,d3:case) : float*float*float =
   (((float_of_int(c1+d1))/.2.),((float_of_int(c2+d2))/.2.),((float_of_int(c3+d3))/.2.));;
 
-let coord_pivot (c1,c2,c3:case) (d1,d2,d3:case) : case_opt =
+let coord_pivot (c1,c2,c3:case) (d1,d2,d3:case) : case_option =
   let i,j,k = midDist_2pts (c1,c2,c3:case) (d1,d2,d3:case) in
   if (c1=d1 || c2=d2 || c3=d3) && ((pt_ent i)=i && (pt_ent j)=j && (pt_ent k)=k)
   then Some((int_of_float(i),int_of_float(j),int_of_float(k)))
@@ -128,10 +133,6 @@ let rec colorie (color:couleur) (cse:case list) : case_coloree list =
 
 (* Q15 *)
 
-let rec tourner_config ((ccl_liste,cl_lis,dim):configuration) : configuration = (*(([-3;-3;6],Jaune),[Jaune],3)*)
-;;
-(*Pas fini j'ai pas compris le concept mdr*)
-
 (*Q17*)
 let quelle_couleur (c:case) ((ccl_liste,cl_lis,dim):configuration) : couleur =
   associe c ccl_liste Libre;;
@@ -139,10 +140,32 @@ let quelle_couleur (c:case) ((ccl_liste,cl_lis,dim):configuration) : couleur =
 (*18*)
 let rec suppr_dans_conf ((ccl_liste,cl_lis,dim):configuration) (c:case) : configuration =
   match ccl_liste with
-  |[] |[(i,j,k),_] when i,j,k!=c -> (ccl_liste,cl_lis,dim)
+  |[] -> (ccl_liste,cl_lis,dim)
+  |[(i,j,k),_] when (i,j,k)!=c -> (ccl_liste,cl_lis,dim)
   |[(i,j,k),_]-> [],cl_lis,dim
-  |pr::fin -> let i,j,k,color = pr in if i,j,k=c in (fin,cl_lis,dim) else suppr_dans_conf (fin,cl_lis,dim) c;;
+  |pr::fin -> let (i,j,k),color = pr in if (i,j,k) = c then (fin,cl_lis,dim) else suppr_dans_conf (fin,cl_lis,dim) c;;
+  (* Fonctionne/ Peut être enlever la couleur de la liste des couleurs si plus aucune case de cette couleur n'est sur le plateau *)
 
+(*19
+d = départ
+a = arrivée*)
+let tri_quad (color_liste:case_coloree list) = List.fold_left (fun fin deb -> let (i,j,k),cl = deb in fin@[(i,j,k)]) [] color_liste;;
+(* tri_quad [(1,1,2),Vert;(1,0,0),Jaune];;
+   list = [(1, 1, 2); (1, 0, 0)] *)
+
+let est_coup_valide ((ccl_liste,cl_lis,dim):configuration) (Du(d,a):coup) : bool =
+  let sans_dim = tri_quad ccl_liste in
+  sont_cases_voisines d a && 
+  (List.mem (d,List.hd cl_lis) ccl_liste) && 
+  est_dans_losange a dim &&
+  not(List.mem a sans_dim);;
+  (*Ici on ne traite pas le cas du constructeur Sm de coup car on fait les coups unitaires*)
+
+assert(est_coup_valide (test_configuration) (Du((0,0,0),(0,-1,1))));;
+assert(est_coup_valide (test_configuration) (Du((0,0,0),(1,-1,0))));;
+assert(est_coup_valide (test_configuration) (Du((0,0,0),(2,-1,-1))));;
+
+(* Q20 *)
 
 (*AFFICHAGE (fonctionne si les fonctions au dessus sont remplies)*)
 (*transfo transforme des coordonnees cartesiennes (x,y) en coordonnees de case (i,j,k)*)
