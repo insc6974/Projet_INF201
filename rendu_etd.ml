@@ -50,8 +50,8 @@ let diff_case ((c1,c2,c3):case) ((d1,d2,d3):case) : vecteur =
 (*Q7*)
 let sont_cases_voisines ((c1,c2,c3):case) ((d1,d2,d3):case) : bool = abs(d1-c1)+abs(d2-c2)+abs(d3-c3) = 2
 ;;
-assert(sont_cases_voisines (1,0,-1) (0,0,0));;
-assert(sont_cases_voisines (0,0,0) (3,2,2));;
+assert(sont_cases_voisines (1,0,-1) (0,0,0) = true);;
+assert(sont_cases_voisines (0,0,0) (3,2,2) = false);;
 (*Q8*)
 let pt_ent (x:float) : float =
   float_of_int(truncate x);;
@@ -67,10 +67,10 @@ let coord_pivot (c1,c2,c3:case) (d1,d2,d3:case) : case_option =
 ;;
 
 (*Q9*)
-let vec_et_dist ((c1,c2,c3):case)((d1,d2,d3):case):vecteur*int= match (c1,c2,c3,d1,d2,d3) with 
+let vec_et_dist ((c1,c2,c3):case)((d1,d2,d3):case):vecteur*int= match (c1,c2,c3,d1,d2,d3) with
 |c1,c2,c3,d1,d2,d3 when d1-c1 <> 0 -> let d = abs(d1-c1) in (((c1-d1)/d,(c2-d2)/d,(c3-d3)/d),d)
 |c1,c2,c3,d1,d2,d3 when d2-c2 <> 0 -> let d = abs(d2-c2) in (((c1-d1)/d,(c2-d2)/d,(c3-d3)/d),d)
-;;
+|c1,c2,c3,d1,d2,d3 when (c1,c2,c3)=(d1,d2,d3) -> (0,0,0),0;;(*Cas cases égalent requis pour 22*)
 (*Q10*)
 let rec insere(liste : 'a list) (x : 'a): 'a list = 
 match liste with 
@@ -86,6 +86,7 @@ let rec der_list(liste : 'a list):'a =
 match liste with 
 |[pr] -> pr
 |pr::fin -> der_list fin
+[@@warning "-8"]
 ;;
 
 (*Q11*)
@@ -133,6 +134,8 @@ let rec colorie (color:couleur) (cse:case list) : case_coloree list =
 
 (* Q15 *)
 
+(* Q16 *)
+
 (*Q17*)
 let quelle_couleur (c:case) ((ccl_liste,cl_lis,dim):configuration) : couleur =
   associe c ccl_liste Libre;;
@@ -154,18 +157,45 @@ let tri_quad (color_liste:case_coloree list) = List.fold_left (fun fin deb -> le
    list = [(1, 1, 2); (1, 0, 0)] *)
 
 let est_coup_valide ((ccl_liste,cl_lis,dim):configuration) (Du(d,a):coup) : bool =
-  let sans_dim = tri_quad ccl_liste in
+  let sans_color= tri_quad ccl_liste in
   sont_cases_voisines d a && 
   (List.mem (d,List.hd cl_lis) ccl_liste) && 
   est_dans_losange a dim &&
-  not(List.mem a sans_dim);;
+  not(List.mem a sans_color);;
   (*Ici on ne traite pas le cas du constructeur Sm de coup car on fait les coups unitaires*)
 
-assert(est_coup_valide (test_configuration) (Du((0,0,0),(0,-1,1))));;
-assert(est_coup_valide (test_configuration) (Du((0,0,0),(1,-1,0))));;
-assert(est_coup_valide (test_configuration) (Du((0,0,0),(2,-1,-1))));;
+assert(est_coup_valide (test_configuration) (Du((0,0,0),(0,-1,1))) = true);;
+assert(est_coup_valide (test_configuration) (Du((0,0,0),(1,-1,0))) = true);;
+assert(est_coup_valide (test_configuration) (Du((0,0,0),(2,-1,-1))) =false);;
 
 (* Q20 *)
+let appliquer_coup (conf:configuration) (Du(d,a):coup) : configuration =
+  if est_coup_valide conf (Du(d,a))
+    then let (ccl_liste,cl_lis,dim) = (suppr_dans_conf conf d) in ((a,List.hd cl_lis)::ccl_liste,cl_lis,dim)
+  else conf;;
+(*utop # appliquer_coup (test_configuration) (Du((0,0,0),(0,-1,1)));;
+- : configuration = ([((0, -1, 1), Jaune); ((0, 1, 0), Vert)], [Jaune; Vert], 2)
+
+Q21 ?? Meme fonction que la Q20*)
+let mise_aJour_conf (conf:configuration) (Du(d,a):coup) : configuration =
+  if est_coup_valide conf (Du(d,a))
+    then let (ccl_liste,cl_lis,dim) = (suppr_dans_conf conf d) in ((a,List.hd cl_lis)::ccl_liste,cl_lis,dim)
+  else failwith "Ce coup n'est pas valide, le joueur doit rejouer";;
+(*utop # mise_aJour_conf (test_configuration) (Du((0,0,0),(2,-1,-1)));;
+Exception: Failure "Ce coup n'est pas valide, le joueur doit rejouer"
+
+Q22*)
+let rec est_libre_seg (c1:case) (c2:case) ((ccl_liste,cl_lis,dim):configuration) : bool =
+  let (i,j,k),coef = vec_et_dist c1 c2 and case_list = tri_quad ccl_liste in
+  match coef with
+  | 0 -> true
+  | x -> 
+    not(List.mem (i+1,j+1,k+1) case_list) &&
+    est_libre_seg (i+1,j+1,k+1) c2 (ccl_liste,cl_lis,dim);; 
+    (* pas fini --> Faire fonction auxiliaire pour crée une liste de toute les cases du seg c1 c2 *)
+
+
+
 
 (*AFFICHAGE (fonctionne si les fonctions au dessus sont remplies)*)
 (*transfo transforme des coordonnees cartesiennes (x,y) en coordonnees de case (i,j,k)*)
