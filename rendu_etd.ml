@@ -15,7 +15,7 @@ type configuration = case_coloree list * couleur list * dimension;; (*sans case 
           
 type coup = Du of case * case | Sm of case list;;
 
-let test_configuration = ([(0,0,0),Jaune;(0,1,0),Vert],[Jaune;Vert],2)
+let test_configuration = ([(0,0,0),Jaune;(0,1,-1),Vert],[Jaune;Vert],2)
 (* Au tour des Jaunes de jouer *)
 
 let indice_valide (x:int) (dim:dimension) : bool =
@@ -185,14 +185,22 @@ let mise_aJour_conf (conf:configuration) (Du(d,a):coup) : configuration =
 Exception: Failure "Ce coup n'est pas valide, le joueur doit rejouer"
 
 Q22*)
-let rec est_libre_seg (c1:case) (c2:case) ((ccl_liste,cl_lis,dim):configuration) : bool =
+let rec est_libre_seg (c1:case) ((c2):case) ((ccl_liste,cl_lis,dim):configuration) : bool =
   let (i,j,k),coef = vec_et_dist c1 c2 and case_list = tri_quad ccl_liste in
-  match coef with
-  | 0 -> true
-  | x -> 
-    not(List.mem (i+1,j+1,k+1) case_list) &&
-    est_libre_seg (i+1,j+1,k+1) c2 (ccl_liste,cl_lis,dim);; 
-    (* pas fini --> Faire fonction auxiliaire pour crée une liste de toute les cases du seg c1 c2 *)
+  match c1,c2 with
+  |c1,c2 when c1=c2-> not(List.mem c1 case_list)
+  |(x,y,z),c2-> 
+    not(List.mem (x,y,z) case_list) &&
+    est_libre_seg (x-i,y-j,z-k) c2 (ccl_liste,cl_lis,dim);;
+
+assert(est_libre_seg (1,0,-1) (3,0,-3) (test_configuration) = true);;
+assert(est_libre_seg (0,-1,1) (0,3,-3) (test_configuration) = false);;
+(*Fonctionne bien
+   
+Q23*)
+
+
+
 
 
 
