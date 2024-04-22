@@ -157,11 +157,11 @@ let tri_quad (color_liste:case_coloree list) = List.fold_left (fun fin deb -> le
    list = [(1, 1, 2); (1, 0, 0)] *)
 
 let est_coup_valide ((ccl_liste,cl_lis,dim):configuration) (Du(d,a):coup) : bool =
-  let sans_color= tri_quad ccl_liste in
+  let case_list= tri_quad ccl_liste in
   sont_cases_voisines d a && 
   (List.mem (d,List.hd cl_lis) ccl_liste) && 
   est_dans_losange a dim &&
-  not(List.mem a sans_color);;
+  not(List.mem a case_list);;
   (*Ici on ne traite pas le cas du constructeur Sm de coup car on fait les coups unitaires*)
 
 assert(est_coup_valide (test_configuration) (Du((0,0,0),(0,-1,1))) = true);;
@@ -184,7 +184,7 @@ let mise_aJour_conf (conf:configuration) (Du(d,a):coup) : configuration =
 (*utop # mise_aJour_conf (test_configuration) (Du((0,0,0),(2,-1,-1)));;
 Exception: Failure "Ce coup n'est pas valide, le joueur doit rejouer"
 
-Q22*)
+Q22 Verifier que les cases en entrée sont bien valide ???*)
 let rec est_libre_seg (c1:case) ((c2):case) ((ccl_liste,cl_lis,dim):configuration) : bool =
   let (i,j,k),coef = vec_et_dist c1 c2 and case_list = tri_quad ccl_liste in
   match c1,c2 with
@@ -199,10 +199,77 @@ assert(est_libre_seg (0,-1,1) (0,3,-3) (test_configuration) = false);;
    
 Q23*)
 
+let est_saut ((x,y,z):case) (c2:case) ((ccl_liste,cl_lis,dim):configuration) : bool =
+  let (i,j,k),coef = vec_et_dist (x,y,z) c2 and case_list = tri_quad ccl_liste in
+  coef = 2 && est_dans_losange c2 dim && not(List.mem c2 case_list) && 
+  (List.mem (x-i,y-j,z-k) case_list);;
 
+assert(est_saut (0,0,0) (0,2,-2) (test_configuration) = true);;
 
+(* Q24 *)
 
+let rec saut_multiple (case_li:case list) (conf:configuration) : bool =
+  match case_li with
+  |[c1;c2] -> est_saut c1 c2 conf
+  |[] -> true
+  |pr::fin -> 
+    let c2 = List.hd fin in est_saut pr c2 conf && 
+    saut_multiple fin conf;;
+(*utop # saut_multiple [(1,-1,0);(-1,1,0);(1,1,-2)] (test_configuration);;
+- : bool = true
 
+Q25*)
+let est_coup_valide_f ((ccl_liste,cl_lis,dim):configuration) (c:coup) : bool =
+  let case_list= tri_quad ccl_liste in match c with
+  |Du(c1,c2) ->
+  sont_cases_voisines c1 c2 && 
+  (List.mem (c1,List.hd cl_lis) ccl_liste) && 
+  est_dans_losange c2 dim &&
+  not(List.mem c2 case_list)
+  |Sm(c_li) -> saut_multiple c_li (ccl_liste,cl_lis,dim);;
+
+assert(est_coup_valide_f (test_configuration) (Sm([(1,-1,0);(-1,1,0);(1,1,-2)])));;
+(* Revient finalement à tester la fonction de la question 24*)
+
+let (<<) f g = fun x -> f(g x);;
+let dernier = (<<) List.hd List.rev ;;
+
+let maj_conf_f (conf:configuration) (c:coup) : configuration =
+  if est_coup_valide_f conf c then
+    match c with
+    |Du(d,a) -> let (ccl_liste,cl_lis,dim) = (suppr_dans_conf conf d) in 
+      ((a,List.hd cl_lis)::ccl_liste,cl_lis,dim)
+    |Sm(case_lis) -> let (ccl_liste,cl_lis,dim) = (suppr_dans_conf conf (List.hd case_lis)) in 
+      ((dernier case_lis,List.hd cl_lis)::ccl_liste,cl_lis,dim)
+  else failwith "Ce coup n’est pas valide, le joueur doit rejouer";;
+(* La fonction appliquer coup et maj_conf sont similaire autant implémenter directement maj_conf
+TEST : ...*)
+
+(* Q26 *)
+let score ((ccl_liste,cl_lis,dim):configuration) : int =
+ let joueur = List.hd cl_lis in 
+ List.fold_left (fun fin deb -> let (i,j,k),color = deb in if color = joueur then abs(i) + fin else fin) 0 ccl_liste;;
+
+assert(score ([(1,0,-1),Jaune;(0,0,0),Jaune;(0,1,-1),Vert],[Jaune;Vert],2) =1);;
+-3,1,2
+let score_gagnant (dim:dimension) : int =
+  let sommet_bas = (-1-dim,1,dim) in let trian_li = remplir_triangle_bas dim sommet_bas in
+  List.fold_left (fun fin deb -> let i,j,k = deb in abs(i) + fin) 0 trian_li;;
+assert(score_gagnant 3 = 28);;
+assert(score_gagnant 2 = 10);;
+
+(* Q27 *)
+let gagne ((ccl_liste,cl_lis,dim):configuration) : bool =
+  score (ccl_liste,cl_lis,dim) = score_gagnant dim;;
+assert(gagne test_configuration = false);;
+assert(gagne ([(-3,1,2),Jaune;(-3,2,1),Jaune;(-4,2,2),Jaune],[Jaune],2)=true);;
+
+(* Q28  Pas bien compris l'énoncé*)
+let est_partie ((ccl_liste,cl_lis,dim):configuration) (cp_li:coup list) : couleur =
+  if gagne (ccl_liste,cl_lis,dim) then List.hd cl_lis else Libre;;
+(* A tester et compléter *)
+
+(*Q29*)
 
 
 (*AFFICHAGE (fonctionne si les fonctions au dessus sont remplies)*)
