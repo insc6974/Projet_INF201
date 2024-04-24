@@ -251,7 +251,7 @@ let score ((ccl_liste,cl_lis,dim):configuration) : int =
  List.fold_left (fun fin deb -> let (i,j,k),color = deb in if color = joueur then abs(i) + fin else fin) 0 ccl_liste;;
 
 assert(score ([(1,0,-1),Jaune;(0,0,0),Jaune;(0,1,-1),Vert],[Jaune;Vert],2) =1);;
--3,1,2
+
 let score_gagnant (dim:dimension) : int =
   let sommet_bas = (-1-dim,1,dim) in let trian_li = remplir_triangle_bas dim sommet_bas in
   List.fold_left (fun fin deb -> let i,j,k = deb in abs(i) + fin) 0 trian_li;;
@@ -266,11 +266,27 @@ assert(gagne ([(-3,1,2),Jaune;(-3,2,1),Jaune;(-4,2,2),Jaune],[Jaune],2)=true);;
 
 (* Q28  Pas bien compris l'énoncé*)
 let est_partie ((ccl_liste,cl_lis,dim):configuration) (cp_li:coup list) : couleur =
-  if gagne (ccl_liste,cl_lis,dim) then List.hd cl_lis else Libre;;
+  if gagne (ccl_liste,cl_lis,dim) && List.for_all (est_coup_valide_f (ccl_liste,cl_lis,dim)) cp_li
+    then List.hd cl_lis else Libre;;
 (* A tester et compléter *)
 
 (*Q29*)
 
+let autour_case ((i,j,k):case) (dim:dimension) : case list =
+  let x,y,z = i,j-1,k+1 in let seg = remplir_segment 2 (x,y,z) in
+  let a_trier = List.fold_left (fun fin deb -> (remplir_triangle_bas 2 deb)@(remplir_triangle_haut 2 deb)@fin) [] seg in
+  (x,y,z)::(i,j+1,k-1)::(List.filter (fun m -> m<>(x,y,z) && m<>(i,j,k) && m<>(i,j+1,k-1)) a_trier);;
+  (*autour_case (0,0,0) 2 
+    - : case list = [(0, -1, 1); (0, 1, -1); (-1, 1, 0); (1, 0, -1); (-1, 0, 1); (1, -1, 0)]*)
+let autour_case_occu (c:case) ((ccl_liste,cl_lis,dim):configuration) : case list =
+  let around = autour_case c dim and liste_case_conf = tri_quad ccl_liste in List.filter (fun x -> List.exists (fun y -> y=x) liste_case_conf) around;; 
+
+let rec coup_possible ((ccl_liste,cl_lis,dim):configuration) (c:case) : (case*coup) list =
+  let around = autour_case c dim in 
+  List.fold_right (fun deb fin -> if est_coup_valide_f (ccl_liste,cl_lis,dim) (Du(c,deb)) then (deb,(Du(c,deb)))::fin 
+    else let i,j,k = deb and (x,y,z),coef = vec_et_dist c deb in 
+      if est_saut c (i-x,j-y,k-z) (ccl_liste,cl_lis,dim) then (deb,Sm([c;(i-x,j-y,k-z )]))::fin else fin) around [];;
+(* En cour de dev *)
 
 (*AFFICHAGE (fonctionne si les fonctions au dessus sont remplies)*)
 (*transfo transforme des coordonnees cartesiennes (x,y) en coordonnees de case (i,j,k)*)
