@@ -15,7 +15,10 @@ type configuration = case_coloree list * couleur list * dimension;; (*sans case 
           
 type coup = Du of case * case | Sm of case list;;
 
-let test_configuration = ([(0,0,0),Jaune;(0,1,-1),Vert],[Jaune;Vert],2)
+let test_configuration = ([(0,0,0),Jaune;(2,0,-2),Jaune;(-3,1,2),Jaune;(-2,1,1),Jaune;(0,1,-1),Vert],[Jaune;Vert],3);;
+let test_configuration2 = ([(0,0,0),Jaune;(2,0,-2),Jaune;(-2,0,2),Jaune;(0,-1,1),Vert;(2,-1,-1),Vert],[Jaune;Vert],2);;
+let test_configuration3 = ([(0,-1,1),Jaune;(-1,1,0),Jaune;(1,0,-1),Jaune;(0,1,-1),Vert],[Jaune;Vert],2);;
+(*Pour tester la fonction devant_case_occu et l'auto détection de saut multiples dans différentes configurations*)
 (* Au tour des Jaunes de jouer *)
 
 let indice_valide (x:int) (dim:dimension) : bool =
@@ -193,7 +196,7 @@ let rec est_libre_seg (c1:case) ((c2):case) ((ccl_liste,cl_lis,dim):configuratio
     not(List.mem (x,y,z) case_list) &&
     est_libre_seg (x-i,y-j,z-k) c2 (ccl_liste,cl_lis,dim);;
 
-assert(est_libre_seg (1,0,-1) (3,0,-3) (test_configuration) = true);;
+assert(est_libre_seg (1,0,-1) (3,0,-3) (test_configuration) = false);;
 assert(est_libre_seg (0,-1,1) (0,3,-3) (test_configuration) = false);;
 (*Fonctionne bien
    
@@ -220,15 +223,16 @@ let rec saut_multiple (case_li:case list) (conf:configuration) : bool =
 
 Q25*)
 let est_coup_valide_f ((ccl_liste,cl_lis,dim):configuration) (c:coup) : bool =
-  let case_list= tri_quad ccl_liste in match c with
+  let case_list= tri_quad ccl_liste in 
+  match c with
   |Du(c1,c2) ->
   sont_cases_voisines c1 c2 && 
   (List.mem (c1,List.hd cl_lis) ccl_liste) && 
   est_dans_losange c2 dim &&
   not(List.mem c2 case_list)
-  |Sm(c_li) -> saut_multiple c_li (ccl_liste,cl_lis,dim);;
+  |Sm(c_li) -> (List.mem (List.hd c_li) case_list) && saut_multiple c_li (ccl_liste,cl_lis,dim);;
 
-assert(est_coup_valide_f (test_configuration) (Sm([(1,-1,0);(-1,1,0);(1,1,-2)])));;
+assert(est_coup_valide_f (test_configuration) (Sm([(1,-1,0);(-1,1,0);(1,1,-2)]))= true);;
 (* Revient finalement à tester la fonction de la question 24*)
 
 let (<<) f g = fun x -> f(g x);;
@@ -272,21 +276,102 @@ let est_partie ((ccl_liste,cl_lis,dim):configuration) (cp_li:coup list) : couleu
 
 (*Q29*)
 
-let autour_case ((i,j,k):case) (dim:dimension) : case list =
+let autour_case ((i,j,k):case) (dim:dimension) : case list = (*Renvoie la liste des cases autours d'une case c*)
   let x,y,z = i,j-1,k+1 in let seg = remplir_segment 2 (x,y,z) in
   let a_trier = List.fold_left (fun fin deb -> (remplir_triangle_bas 2 deb)@(remplir_triangle_haut 2 deb)@fin) [] seg in
   (x,y,z)::(i,j+1,k-1)::(List.filter (fun m -> m<>(x,y,z) && m<>(i,j,k) && m<>(i,j+1,k-1)) a_trier);;
   (*autour_case (0,0,0) 2 
     - : case list = [(0, -1, 1); (0, 1, -1); (-1, 1, 0); (1, 0, -1); (-1, 0, 1); (1, -1, 0)]*)
-let autour_case_occu (c:case) ((ccl_liste,cl_lis,dim):configuration) : case list =
-  let around = autour_case c dim and liste_case_conf = tri_quad ccl_liste in List.filter (fun x -> List.exists (fun y -> y=x) liste_case_conf) around;; 
 
-let rec coup_possible ((ccl_liste,cl_lis,dim):configuration) (c:case) : (case*coup) list =
-  let around = autour_case c dim in 
-  List.fold_right (fun deb fin -> if est_coup_valide_f (ccl_liste,cl_lis,dim) (Du(c,deb)) then (deb,(Du(c,deb)))::fin 
-    else let i,j,k = deb and (x,y,z),coef = vec_et_dist c deb in 
-      if est_saut c (i-x,j-y,k-z) (ccl_liste,cl_lis,dim) then (deb,Sm([c;(i-x,j-y,k-z )]))::fin else fin) around [];;
-(* En cour de dev *)
+let devant_case_occu ((i,j,k):case) ((ccl_liste,cl_lis,dim):configuration) : case list = (*renvoie la liste des cases devant une case c*)
+  let around = autour_case (i,j,k) dim and liste_case_conf = tri_quad ccl_liste in 
+  List.filter (fun x -> List.exists (fun y -> y=x) liste_case_conf && let (m,n,o) = x in m>i) around;;
+
+(*Petite fonction pour supprimer des doublons dans une liste*)
+let cons_uniq fin pr = if List.mem pr fin then fin else pr::fin 
+let suppr_dbl fin = List.rev (List.fold_left cons_uniq [] fin);;
+(* fin *)
+
+let rec auto_sm1 (c:case) (coqp:case list) (conf:configuration) : coup =
+  match coqp with
+  |[]-> Sm([])
+  |(i,j,k)::fin-> 
+    let (x,y,z),coef = vec_et_dist c (i,j,k) in if est_saut c (i-x,j-y,k-z) conf && x<0 then let coqp2 = devant_case_occu (i-x,j-y,k-z) test_configuration in
+      let Sm(c_li) = auto_sm1 (i-x,j-y,k-z) coqp2 conf in Sm(suppr_dbl ([c;(i-x,j-y,k-z)]@c_li)) else Sm([]);;
+
+let auto_sm_final (c:case) (coqp:case list) (conf:configuration) : coup list=
+  let rec auto_sm2 c coqp conf =
+    match coqp with
+    |[]-> [Sm([])]
+    |(i,j,k)::fin-> 
+      let (x,y,z),coef = vec_et_dist c (i,j,k) in if est_saut c (i-x,j-y,k-z) conf then let coqp2 = devant_case_occu (i-x,j-y,k-z) test_configuration in
+        let Sm(c_li) = auto_sm1 (i-x,j-y,k-z) coqp2 conf in let Sm(branche) = (auto_sm1 (i-x,j-y,k-z) (List.rev coqp2) conf) in
+        [Sm(c::branche)]@[Sm(suppr_dbl ([c;(i-x,j-y,k-z)]@c_li))]@auto_sm2 c fin conf else [Sm([])] in
+  List.filter (fun x -> let Sm(li) = x in List.length li>1) (auto_sm2 c coqp conf);;
+(* Cette question est mal optimiser par soucis de temps et de complexciter, mais reste fonctionnelle
+   
+utop # auto_sm2 (-3,1,2) [(-2, 1, 1)] test_configuration;;
+- : coup list =
+[Sm [(-3, 1, 2); (-1, 1, 0); (1, -1, 0)];
+ Sm [(-3, 1, 2); (-1, 1, 0); (1, 1, -2); (3, -1, -2)]; Sm []]*)
+
+(* Méthode arbre 
+   //////////////*)
+type 'a arbca = V | N of 'a arbca*'a arbca*'a*'a arbca*'a arbca;;
+
+let direction (c1:case) (c2:case) : int = (*Pas besoin*)
+  match vec_et_dist c1 c2 with
+  |(i,j,k),co when i=0 && j>0 && k<0-> 1 (*Gauche*)
+  |(i,j,k),co when i<0 && j>0 && k=0-> 2 (*Hautg*)
+  |(i,j,k),co when i<0 && j=0 && k>0-> 3 (*Hautd*)
+  |(i,j,k),co when i=0 && j<0 && k>0-> 4 (*Droite*)
+  |_ -> 0;; (*Case vide*)
+
+let rec cmplt_l (l:case list): case list = (*Complete une liste de case jusqu'à 4 elements*)
+  match List.length l with 
+  |4-> l 
+  |_-> cmplt_l ((1,1,1)::l);;
+
+let rec tri_devant_case c l = (*tri une liste de case de 4 elements, en fonction de la direction entre la case de départ et les cases de la liste*)
+  match l with
+  |[] -> []
+  |[x] -> [x]
+  |pr::fin -> let suiv = List.hd fin in let dir_suiv = direction c suiv in
+  if dir_suiv>direction c pr then pr::suiv::tri_devant_case c (List.tl fin) else suiv::tri_devant_case c (List.tl fin);;
+
+let rec cons_arb (c:case) (conf:configuration) : 'a arbca =
+  match devant_case_occu c conf with (*La liste Devant case doit avoir tt le temps 4 element, type Some option si y a pas de case c'est NONE*)
+  |[] -> V
+  |(i,j,k)::fin -> 
+    let (x,y,z),coef = vec_et_dist c (i,j,k) in
+    N((if z<0 then cons_arb (i-x,j-y,k-z) conf else V),
+      (if x<0 && z=0 then cons_arb (i-x,j-y,k-z) conf else V),
+      c,
+      (if z<0 && y=0 then cons_arb (i-x,j-y,k-z) conf else V),
+      if y<0 then cons_arb (i-x,j-y,k-z) conf else V);;
+
+(* /////////////
+   Fin méthode Mais non achevé *)
+
+let coup_possible ((ccl_liste,cl_lis,dim):configuration) (c:case) : (case*coup) list =
+  let around = autour_case c dim in let coqp = devant_case_occu c (ccl_liste,cl_lis,dim) in let saut_mult = (auto_sm_final c coqp (ccl_liste,cl_lis,dim)) in
+  List.fold_right (fun deb fin -> if est_coup_valide_f (ccl_liste,cl_lis,dim) (Du(c,deb)) then 
+    (deb,(Du(c,deb)))::fin else fin) around []@
+  (List.fold_right (fun deb fin -> if est_coup_valide_f (ccl_liste,cl_lis,dim) deb then 
+    let Sm(li)=deb in let arrive = dernier li in (arrive,deb)::fin else fin) saut_mult []);;
+(*utop # coup_possible test_configuration (-3,1,2);;
+- : (case * coup) list =
+[((-3, 0, 3), Du ((-3, 1, 2), (-3, 0, 3)));
+ ((-3, 2, 1), Du ((-3, 1, 2), (-3, 2, 1)));
+ ((-4, 2, 2), Du ((-3, 1, 2), (-4, 2, 2)));
+ ((-4, 1, 3), Du ((-3, 1, 2), (-4, 1, 3)));
+ ((-2, 0, 2), Du ((-3, 1, 2), (-2, 0, 2)));
+ ((1, -1, 0), Sm [(-3, 1, 2); (-1, 1, 0); (1, -1, 0)]);
+ ((3, -1, -2), Sm [(-3, 1, 2); (-1, 1, 0); (1, 1, -2); (3, -1, -2)])]
+ 
+ Q30*)
+
+ 
 
 (*AFFICHAGE (fonctionne si les fonctions au dessus sont remplies)*)
 (*transfo transforme des coordonnees cartesiennes (x,y) en coordonnees de case (i,j,k)*)
@@ -338,4 +423,3 @@ affiche conf_vide;;
 (*A essayer apres avoir fait remplir_init
 affiche (remplir_init [Code "Ali";Code "Bob";Code "Jim"] 3);;
 *)
- 
